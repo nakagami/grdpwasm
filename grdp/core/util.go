@@ -1,0 +1,57 @@
+package core
+
+import (
+	"crypto/rand"
+	"encoding/binary"
+	"unicode/utf16"
+)
+
+func Reverse(s []byte) []byte {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+	return s
+}
+
+func Random(n int) []byte {
+	const alpha = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	var bytes = make([]byte, n)
+	rand.Read(bytes)
+	for i, b := range bytes {
+		bytes[i] = alpha[b%byte(len(alpha))]
+	}
+	return bytes
+}
+
+func UTF16ToLittleEndianBytes(u []uint16) []byte {
+	b := make([]byte, 2*len(u))
+	for index, value := range u {
+		binary.LittleEndian.PutUint16(b[index*2:], value)
+	}
+	return b
+}
+
+func LittleEndianBytesToUTF16(u []byte) []uint16 {
+	b := make([]uint16, len(u)/2)
+	for i := range b {
+		b[i] = binary.LittleEndian.Uint16(u[i*2:])
+	}
+	return b
+}
+
+// s.encode('utf-16le')
+func UnicodeEncode(p string) []byte {
+	return UTF16ToLittleEndianBytes(utf16.Encode([]rune(p)))
+}
+
+func UnicodeDecode(p []byte) string {
+	n := make([]uint16, len(p)/2)
+	for i := range n {
+		n[i] = binary.LittleEndian.Uint16(p[i*2:])
+	}
+	return string(utf16.Decode(n))
+}
+
+func BytesToUint64(b []byte) uint64 {
+	return binary.LittleEndian.Uint64(b)
+}
