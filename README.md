@@ -87,10 +87,6 @@ Remote audio is streamed via RDPSND and played through the browser's Web Audio A
 
 ## Development
 
-The repository contains a local fork of `grdp` under `./grdp/` with one addition:
-a `Dialer` field on `RdpClient` that lets callers inject a custom `net.Conn` factory.
-This is what allows the WASM build to connect via WebSocket instead of TCP.
-
 ```
 make wasm       # rebuild only the WASM binary
 make proxy      # rebuild only the proxy server
