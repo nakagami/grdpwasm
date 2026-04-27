@@ -53,7 +53,7 @@
     }
     #rdpCanvas {
       display: block;
-      cursor: default;
+      cursor: none;
       outline: none;
     }
   </style>
@@ -225,6 +225,133 @@
     const canvas = document.getElementById('rdpCanvas');
     let ctx2d = canvas.getContext('2d');
 
+    // ── Server-side mouse pointer ─────────────────────────────────────────────
+    // The RDP server sends pointer shapes (with hotspots) and cache references.
+    // We rasterise each shape to a PNG data URL once and apply it as the
+    // canvas's CSS cursor; the browser composites it natively at the local
+    // mouse position.  Pointer shapes are cached by server-assigned index;
+    // pointer_cached PDUs just re-select an already-rendered shape.
+    const pointerCache = new Map(); // idx → CSS cursor value
+
+    function rdpOnPointerHide() {
+      canvas.style.cursor = 'none';
+    }
+
+    function rdpOnPointerCached(idx) {
+      const css = pointerCache.get(idx);
+      if (css) canvas.style.cursor = css;
+    }
+
+    function rdpOnPointerUpdate(idx, xorBpp, hotX, hotY, w, h, andMask, xorData) {
+      const css = buildCursorCss(xorBpp, hotX, hotY, w, h, andMask, xorData);
+      if (!css) return;
+      pointerCache.set(idx, css);
+      canvas.style.cursor = css;
+    }
+
+    // buildCursorCss rasterises an MS-RDPBCGR pointer (§2.2.9.1.1.4.4) into a
+    // CSS `url(...) hotX hotY, default` cursor value.  AND/XOR mask data
+    // arrives top-down (grdp flips it server-side).
+    function buildCursorCss(xorBpp, hotX, hotY, w, h, andMask, xorData) {
+      if (w <= 0 || h <= 0) return null;
+      const off = ('OffscreenCanvas' in window)
+        ? new OffscreenCanvas(w, h)
+        : Object.assign(document.createElement('canvas'), { width: w, height: h });
+      const octx = off.getContext('2d');
+      const img = octx.createImageData(w, h);
+      const px = img.data;
+
+      // AND mask: 1bpp, padded to 2-byte stride per scanline.
+      const andStride = (((w + 15) >> 4) << 1);
+      const andBit = (x, y) => {
+        const off = y * andStride + (x >> 3);
+        if (off >= andMask.length) return 1; // missing → transparent
+        return (andMask[off] >> (7 - (x & 7))) & 1;
+      };
+
+      if (xorBpp === 1) {
+        // Monochrome: XOR mask is 1bpp, same stride rules as AND.
+        const xorStride = andStride;
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const a = andBit(x, y);
+            const xo = xorStride * y + (x >> 3);
+            const xb = xo < xorData.length
+              ? (xorData[xo] >> (7 - (x & 7))) & 1
+              : 0;
+            const o = (y * w + x) << 2;
+            // (AND, XOR): 00 black, 01 white, 10 transparent, 11 invert→black.
+            if (a === 0 && xb === 0)      { px[o]=0;   px[o+1]=0;   px[o+2]=0;   px[o+3]=255; }
+            else if (a === 0 && xb === 1) { px[o]=255; px[o+1]=255; px[o+2]=255; px[o+3]=255; }
+            else if (a === 1 && xb === 0) { px[o]=0;   px[o+1]=0;   px[o+2]=0;   px[o+3]=0;   }
+            else                          { px[o]=0;   px[o+1]=0;   px[o+2]=0;   px[o+3]=255; }
+          }
+        }
+      } else if (xorBpp === 32) {
+        // BGRA32, alpha takes precedence over AND mask (modern Windows path).
+        const stride = w * 4;
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const s = y * stride + x * 4;
+            const o = (y * w + x) << 2;
+            if (s + 3 >= xorData.length) {
+              px[o]=0; px[o+1]=0; px[o+2]=0; px[o+3]=0;
+              continue;
+            }
+            const b = xorData[s], g = xorData[s+1], r = xorData[s+2], a = xorData[s+3];
+            if (a !== 0) {
+              px[o]=r; px[o+1]=g; px[o+2]=b; px[o+3]=a;
+            } else if (andBit(x, y) === 0) {
+              // AND=0 with alpha=0 means opaque-color-but-no-alpha-channel
+              // (some servers leave alpha as 0); fall back to AND mask.
+              px[o]=r; px[o+1]=g; px[o+2]=b; px[o+3]=255;
+            } else {
+              px[o]=0; px[o+1]=0; px[o+2]=0; px[o+3]=0;
+            }
+          }
+        }
+      } else if (xorBpp === 24) {
+        // BGR24, AND mask provides transparency. Stride padded to 2 bytes
+        // per grdp's flip (matches xorStride = ((w*24 + 15)/16)*2 = w*3 padded).
+        const stride = ((w * 3 + 1) >> 1) << 1;
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const s = y * stride + x * 3;
+            const o = (y * w + x) << 2;
+            if (s + 2 >= xorData.length) {
+              px[o]=0; px[o+1]=0; px[o+2]=0; px[o+3]=0;
+              continue;
+            }
+            if (andBit(x, y) === 0) {
+              px[o]=xorData[s+2]; px[o+1]=xorData[s+1]; px[o+2]=xorData[s]; px[o+3]=255;
+            } else {
+              px[o]=0; px[o+1]=0; px[o+2]=0; px[o+3]=0;
+            }
+          }
+        }
+      } else {
+        // Unsupported depth (15/16bpp etc.): leave canvas transparent so the
+        // cursor hides rather than rendering garbage.
+        console.warn('Unsupported cursor xorBpp:', xorBpp);
+      }
+
+      octx.putImageData(img, 0, 0);
+      // OffscreenCanvas doesn't expose toDataURL; copy through a regular canvas.
+      let dataUrl;
+      if (off instanceof HTMLCanvasElement) {
+        dataUrl = off.toDataURL('image/png');
+      } else {
+        const tmp = document.createElement('canvas');
+        tmp.width = w; tmp.height = h;
+        tmp.getContext('2d').drawImage(off, 0, 0);
+        dataUrl = tmp.toDataURL('image/png');
+      }
+      // Clamp hotspot to bitmap bounds — some servers ship out-of-range values.
+      const hx = Math.max(0, Math.min(w - 1, hotX|0));
+      const hy = Math.max(0, Math.min(h - 1, hotY|0));
+      return `url("${dataUrl}") ${hx} ${hy}, default`;
+    }
+
     // ── WASM bootstrap ────────────────────────────────────────────────────────
     WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then(result => {
       go.run(result.instance);
@@ -262,6 +389,10 @@
       h264Dec = createH264Decoder(width, height);
       h264Timestamp = 0;
       h264FramePos.clear();
+
+      // Reset cursor state for the new session.
+      pointerCache.clear();
+      canvas.style.cursor = 'default';
 
       // Create AudioContext here, while we're in a user-gesture handler,
       // so the browser starts it in 'running' state (no autoplay suspension).

@@ -100,6 +100,24 @@ func connect(proxyWsURL, host, port, domain, user, password string, width, heigh
 		js.Global().Call("rdpOnH264", destX, destY, w, h, isKey, jsArr)
 	})
 
+	uint8Ctor := js.Global().Get("Uint8Array")
+	g.OnPointerHide(func() {
+		js.Global().Call("rdpOnPointerHide")
+	}).OnPointerCached(func(idx uint16) {
+		js.Global().Call("rdpOnPointerCached", int(idx))
+	}).OnPointerUpdate(func(idx, xorBpp, hotX, hotY, w, h uint16, andMask, xorData []byte) {
+		andArr := uint8Ctor.New(len(andMask))
+		if len(andMask) > 0 {
+			js.CopyBytesToJS(andArr, andMask)
+		}
+		xorArr := uint8Ctor.New(len(xorData))
+		if len(xorData) > 0 {
+			js.CopyBytesToJS(xorArr, xorData)
+		}
+		js.Global().Call("rdpOnPointerUpdate",
+			int(idx), int(xorBpp), int(hotX), int(hotY), int(w), int(h), andArr, xorArr)
+	})
+
 	g.OnError(func(e error) {
 		slog.Debug("rdp error", "err", e)
 		js.Global().Call("rdpOnError", e.Error())
