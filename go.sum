@@ -2,7 +2,7 @@ github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aN
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40 h1:EnfXoSqDfSNJv0VBNqY/88RNnhSGYkrHaO0mmFGbVsc=
 github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40/go.mod h1:vy1vK6wD6j7xX6O6hXe621WabdtNkou2h7uRtTfRMyg=
-github.com/nakagami/grdp v0.7.5 h1:Jx82SEO0EUvTdHN9HnslNglGvAHGkMMogoZtxSpSiTQ=
-github.com/nakagami/grdp v0.7.5/go.mod h1:AMIBirYC/0EpvRufWqG5ISRHai43WdMoAxzSQomO2sc=
+github.com/nakagami/grdp v0.7.6 h1:8fH4TH7F6ZENcwsBXzu/x8tF9Uae8cWpj1xJmD3m2+Q=
+github.com/nakagami/grdp v0.7.6/go.mod h1:AMIBirYC/0EpvRufWqG5ISRHai43WdMoAxzSQomO2sc=
 golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d h1:sK3txAijHtOK88l68nt020reeT1ZdKLIYetKl95FzVY=
 golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
