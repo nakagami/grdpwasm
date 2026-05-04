@@ -4,8 +4,6 @@ package main
 
 import (
 	"fmt"
-	"image"
-	"image/draw"
 	"log/slog"
 	"net"
 	"sync"
@@ -16,12 +14,10 @@ import (
 )
 
 var (
-	rdpClient   *grdp.RdpClient
-	clientMu    sync.Mutex
-	screenImage *image.RGBA
-	screenMu    sync.Mutex
-	canvas      js.Value
-	ctx2d       js.Value
+	rdpClient *grdp.RdpClient
+	clientMu  sync.Mutex
+	canvas    js.Value
+	ctx2d     js.Value
 )
 
 func main() {
@@ -83,10 +79,6 @@ func connect(proxyWsURL, host, port, domain, user, password string, width, heigh
 	ctx2d = canvas.Call("getContext", "2d")
 	canvas.Set("width", width)
 	canvas.Set("height", height)
-
-	screenMu.Lock()
-	screenImage = image.NewRGBA(image.Rect(0, 0, width, height))
-	screenMu.Unlock()
 
 	g.OnAudio(func(af rdpsnd.AudioFormat, data []byte) {
 		cp := make([]byte, len(data))
@@ -150,22 +142,53 @@ func connect(proxyWsURL, host, port, domain, user, password string, width, heigh
 }
 
 func renderBitmaps(bs []grdp.Bitmap) {
-	screenMu.Lock()
-	for _, bm := range bs {
-		m := bm.RGBA()
-		destRect := image.Rect(bm.DestLeft, bm.DestTop, bm.DestRight+1, bm.DestBottom+1)
-		draw.Draw(screenImage, destRect, m, image.Pt(0, 0), draw.Src)
-	}
-	// Copy pixels from screenImage to a JS ImageData and draw on canvas
-	pix := screenImage.Pix
-	w := screenImage.Bounds().Dx()
-	h := screenImage.Bounds().Dy()
-	screenMu.Unlock()
+	uint8ClampedCtor := js.Global().Get("Uint8ClampedArray")
+	imageDataCtor := js.Global().Get("ImageData")
 
-	jsArr := js.Global().Get("Uint8ClampedArray").New(len(pix))
-	js.CopyBytesToJS(jsArr, pix)
-	imageData := js.Global().Get("ImageData").New(jsArr, w, h)
-	ctx2d.Call("putImageData", imageData, 0, 0)
+	for _, bm := range bs {
+		w := bm.DestRight - bm.DestLeft + 1
+		if w > bm.Width {
+			w = bm.Width
+		}
+		h := bm.DestBottom - bm.DestTop + 1
+		if h > bm.Height {
+			h = bm.Height
+		}
+		if w <= 0 || h <= 0 {
+			continue
+		}
+
+		rgba := make([]byte, w*h*4)
+		if bm.BitsPerPixel == 4 {
+			// Fast path: bm.Data is BGRA32; swap R↔B to produce RGBA.
+			// Only extract the visible w×h region (bm.Width may be padded wider).
+			srcStride := bm.Width * 4
+			dstStride := w * 4
+			for row := 0; row < h; row++ {
+				src := bm.Data[row*srcStride:]
+				dst := rgba[row*dstStride:]
+				for col := 0; col < w; col++ {
+					dst[col*4+0] = src[col*4+2] // R ← BGRA[2]
+					dst[col*4+1] = src[col*4+1] // G
+					dst[col*4+2] = src[col*4+0] // B ← BGRA[0]
+					dst[col*4+3] = src[col*4+3] // A
+				}
+			}
+		} else {
+			// Slow path: bm.RGBA() converts any legacy bit-depth to RGBA.
+			// Only copy the visible w×h region.
+			m := bm.RGBA()
+			for row := 0; row < h; row++ {
+				src := m.Pix[row*m.Stride : row*m.Stride+w*4]
+				copy(rgba[row*w*4:], src)
+			}
+		}
+
+		jsArr := uint8ClampedCtor.New(len(rgba))
+		js.CopyBytesToJS(jsArr, rgba)
+		imageData := imageDataCtor.New(jsArr, w, h)
+		ctx2d.Call("putImageData", imageData, bm.DestLeft, bm.DestTop)
+	}
 }
 
 func jsDisconnect(_ js.Value, _ []js.Value) any {
