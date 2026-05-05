@@ -100,14 +100,14 @@
       return null;
     }
     function loadCookies() {
-      const fields = ['host', 'port', 'domain'];
+      const fields = ['host', 'port', 'domain', 'width', 'height'];
       for (const id of fields) {
         const v = getCookie('rdp_' + id);
         if (v !== null) document.getElementById(id).value = v;
       }
     }
     function saveCookies() {
-      for (const id of ['host', 'port', 'domain']) {
+      for (const id of ['host', 'port', 'domain', 'width', 'height']) {
         setCookie('rdp_' + id, document.getElementById(id).value.trim());
       }
     }
