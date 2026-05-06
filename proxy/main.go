@@ -15,6 +15,13 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
+func noCacheHandler(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		h.ServeHTTP(w, r)
+	})
+}
+
 func handleWS(w http.ResponseWriter, r *http.Request) {
 	target := r.URL.Query().Get("target")
 	if target == "" {
@@ -90,7 +97,7 @@ func main() {
 	flag.Parse()
 
 	http.HandleFunc("/ws", handleWS)
-	http.Handle("/", http.FileServer(http.Dir(*static)))
+	http.Handle("/", noCacheHandler(http.FileServer(http.Dir(*static))))
 
 	log.Printf("Listening on %s (static: %s)", *listen, *static)
 	if err := http.ListenAndServe(*listen, nil); err != nil {
