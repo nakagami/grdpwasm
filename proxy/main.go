@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -36,7 +37,10 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer wsConn.Close()
 
-	tcpConn, err := net.Dial("tcp", target)
+	dialer := &net.Dialer{
+		KeepAlive: 30 * time.Second,
+	}
+	tcpConn, err := dialer.Dial("tcp", target)
 	if err != nil {
 		slog.Error("dial target", "target", target, "err", err)
 		return
