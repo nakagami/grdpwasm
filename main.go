@@ -116,7 +116,7 @@ func connect(proxyWsURL, host, port, domain, user, password string, width, heigh
 	}).OnClose(func() {
 		slog.Debug("rdp close")
 		js.Global().Call("rdpOnClose")
-	}).OnSucces(func() {
+	}).OnSuccess(func() {
 		slog.Debug("rdp success")
 	}).OnReady(func() {
 		slog.Debug("rdp ready")
