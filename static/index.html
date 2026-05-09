@@ -463,8 +463,18 @@
     canvas.addEventListener("wheel", e => {
       if (!connected) return;
       e.preventDefault();
-      // Negative deltaY = scroll up (positive RDP wheel value)
-      rdpMouseWheel(-Math.sign(e.deltaY) * 3);
+      // Normalize browser deltaY to notch count (1.0 = one physical notch).
+      // grdp's MouseWheel(delta) expects notch units and handles WHEEL_DELTA scaling.
+      // Browser deltaY is positive when scrolling down; RDP wheel is positive for up.
+      let delta;
+      if (e.deltaMode === 1) {        // DOM_DELTA_LINE: ~3 lines per notch
+        delta = -e.deltaY / 3;
+      } else if (e.deltaMode === 2) { // DOM_DELTA_PAGE
+        delta = -e.deltaY;
+      } else {                        // DOM_DELTA_PIXEL: ~100 px per notch
+        delta = -e.deltaY / 100;
+      }
+      rdpMouseWheel(delta);
     }, { passive: false });
 
     canvas.addEventListener("contextmenu", e => e.preventDefault());

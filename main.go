@@ -248,7 +248,7 @@ func jsMouseWheel(_ js.Value, args []js.Value) any {
 	c := rdpClient
 	clientMu.Unlock()
 	if c != nil {
-		c.MouseWheel(args[0].Int())
+		c.MouseWheel(args[0].Float())
 	}
 	return nil
 }

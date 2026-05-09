@@ -1,10 +1,10 @@
 module github.com/nakagami/grdpwasm
 
-go 1.24.0
+go 1.26.3
 
 require (
 	github.com/gorilla/websocket v1.5.3
-	github.com/nakagami/grdp v0.7.15
+	github.com/nakagami/grdp v0.7.27
 )
 
 require (
