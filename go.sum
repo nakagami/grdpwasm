@@ -6,5 +6,7 @@ github.com/nakagami/grdp v0.7.21 h1:HO5p85rCKVHwJQ4IhCVIbhU/nevI2NQRwD51S1n6WP8=
 github.com/nakagami/grdp v0.7.21/go.mod h1:AMIBirYC/0EpvRufWqG5ISRHai43WdMoAxzSQomO2sc=
 github.com/nakagami/grdp v0.7.27 h1:UD+0nyqElcC5uo3x9sKH6JSMss8iYyxYnQPt9rGZPok=
 github.com/nakagami/grdp v0.7.27/go.mod h1:IgCwpPQ5DYmo57b/alTG1rFvPs7kg3C2Km6TiYIvc4Y=
+github.com/nakagami/grdp v0.8.0 h1:YWpuJ8JNnZid2msQFNA1woqEVmFINwomrt48Ujfe5ws=
+github.com/nakagami/grdp v0.8.0/go.mod h1:IgCwpPQ5DYmo57b/alTG1rFvPs7kg3C2Km6TiYIvc4Y=
 golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d h1:sK3txAijHtOK88l68nt020reeT1ZdKLIYetKl95FzVY=
 golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
