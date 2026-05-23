@@ -426,6 +426,15 @@
       setDisconnected("Closed");
     }
 
+    // Server → client: write text to browser clipboard (text only).
+    function rdpOnClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(err => {
+          console.warn("clipboard write failed:", err);
+        });
+      }
+    }
+
     function setDisconnected(msg) {
       connected = false;
       if (audioCtx) { try { audioCtx.close(); } catch (_) {} audioCtx = null; audioNextAt = 0; }
@@ -482,6 +491,19 @@
     canvas.addEventListener("keydown", e => {
       if (!connected) return;
       e.preventDefault();
+      // Ctrl+V: read browser clipboard text and sync to RDP server before forwarding.
+      if (e.code === "KeyV" && e.ctrlKey && !e.altKey) {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          navigator.clipboard.readText().then(text => {
+            rdpClipboardChanged(text);
+            // Small delay to allow server to process clipboard update.
+            setTimeout(() => rdpKeyDown("KeyV"), 100);
+          }).catch(() => rdpKeyDown("KeyV"));
+        } else {
+          rdpKeyDown("KeyV");
+        }
+        return;
+      }
       rdpKeyDown(e.code);
     });
 
