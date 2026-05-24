@@ -426,6 +426,15 @@
       setDisconnected("Closed");
     }
 
+    // Server → client: write text to browser clipboard (text only).
+    function rdpOnClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(err => {
+          console.warn("clipboard write failed:", err);
+        });
+      }
+    }
+
     function setDisconnected(msg) {
       connected = false;
       if (audioCtx) { try { audioCtx.close(); } catch (_) {} audioCtx = null; audioNextAt = 0; }
@@ -479,9 +488,35 @@
 
     canvas.addEventListener("contextmenu", e => e.preventDefault());
 
-    canvas.addEventListener("keydown", e => {
+    // Track the in-flight clipboard read so keydown can wait for it to finish.
+    let clipboardSyncPromise = Promise.resolve();
+
+    function syncClipboard() {
+      if (!connected || !navigator.clipboard || !navigator.clipboard.readText) return;
+      // pointerdown is a user gesture; Chrome will prompt for clipboard-read
+      // permission on first use and read silently thereafter.
+      clipboardSyncPromise = navigator.clipboard.readText()
+        .then(text => { if (text) rdpClipboardChanged(text); })
+        .catch(() => {});
+    }
+
+    // Sync on click: covers the common case of copying in another app then
+    // clicking back into the canvas before pressing the paste key.
+    canvas.addEventListener("pointerdown", syncClipboard);
+
+    // Sync via paste event (Cmd+V on macOS, right-click paste, etc.)
+    document.addEventListener("paste", e => {
+      if (!connected) return;
+      const text = e.clipboardData ? e.clipboardData.getData("text/plain") : "";
+      if (text) rdpClipboardChanged(text);
+    });
+
+    // Await any pending clipboard sync before forwarding each key, so that a
+    // pointerdown-triggered readText() always completes before reaching the server.
+    canvas.addEventListener("keydown", async e => {
       if (!connected) return;
       e.preventDefault();
+      await clipboardSyncPromise;
       rdpKeyDown(e.code);
     });
 

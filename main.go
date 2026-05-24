@@ -14,10 +14,12 @@ import (
 )
 
 var (
-	rdpClient *grdp.RdpClient
-	clientMu  sync.Mutex
-	canvas    js.Value
-	ctx2d     js.Value
+	rdpClient      *grdp.RdpClient
+	clientMu       sync.Mutex
+	canvas         js.Value
+	ctx2d          js.Value
+	localClipboard string
+	clipMu         sync.Mutex
 )
 
 func main() {
@@ -29,6 +31,7 @@ func main() {
 	js.Global().Set("rdpMouseWheel", js.FuncOf(jsMouseWheel))
 	js.Global().Set("rdpKeyDown", js.FuncOf(jsKeyDown))
 	js.Global().Set("rdpKeyUp", js.FuncOf(jsKeyUp))
+	js.Global().Set("rdpClipboardChanged", js.FuncOf(jsClipboardChanged))
 
 	// Block forever — JS callbacks keep things alive.
 	select {}
@@ -130,6 +133,19 @@ func connect(proxyWsURL, host, port, domain, user, password string, width, heigh
 		}
 		go renderBitmaps(bs)
 	})
+
+	g.OnClipboard(
+		func(text string) {
+			// Server → client: write text to browser clipboard.
+			js.Global().Call("rdpOnClipboard", text)
+		},
+		func() string {
+			// Client → server: return current local clipboard text.
+			clipMu.Lock()
+			defer clipMu.Unlock()
+			return localClipboard
+		},
+	)
 
 	if err := g.Login(domain, user, password); err != nil {
 		return err
@@ -281,6 +297,26 @@ func jsKeyUp(_ js.Value, args []js.Value) any {
 		if code != 0 {
 			c.KeyUp(code)
 		}
+	}
+	return nil
+}
+
+// jsClipboardChanged is called from JS when the local clipboard text changes.
+// It stores the text and notifies the RDP server.
+func jsClipboardChanged(_ js.Value, args []js.Value) any {
+	text := ""
+	if len(args) >= 1 {
+		text = args[0].String()
+	}
+	clipMu.Lock()
+	localClipboard = text
+	clipMu.Unlock()
+
+	clientMu.Lock()
+	c := rdpClient
+	clientMu.Unlock()
+	if c != nil {
+		c.NotifyClipboardChanged()
 	}
 	return nil
 }
