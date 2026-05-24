@@ -118,7 +118,19 @@ var keymap = map[string]int{
 	"NonConvert":    0x007B,
 }
 
-func jsCodeToRDP(code string) int {
+func jsCodeToRDP(code string, swapAltMeta bool) int {
+	if swapAltMeta {
+		switch code {
+		case "AltLeft":
+			code = "MetaLeft"
+		case "AltRight":
+			code = "MetaRight"
+		case "MetaLeft":
+			code = "AltLeft"
+		case "MetaRight":
+			code = "AltRight"
+		}
+	}
 	if v, ok := keymap[code]; ok {
 		return v
 	}

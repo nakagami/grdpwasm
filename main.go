@@ -20,6 +20,7 @@ var (
 	ctx2d          js.Value
 	localClipboard string
 	clipMu         sync.Mutex
+	swapAltMeta    bool
 )
 
 func main() {
@@ -37,10 +38,10 @@ func main() {
 	select {}
 }
 
-// jsConnect is called from JS: rdpConnect(proxyWsURL, host, port, domain, user, password, width, height)
+// jsConnect is called from JS: rdpConnect(proxyWsURL, host, port, domain, user, password, width, height, swapAltMeta)
 func jsConnect(_ js.Value, args []js.Value) any {
 	if len(args) < 8 {
-		return fmt.Sprintf("usage: rdpConnect(proxyWsURL, host, port, domain, user, password, width, height)")
+		return fmt.Sprintf("usage: rdpConnect(proxyWsURL, host, port, domain, user, password, width, height[, swapAltMeta])")
 	}
 	proxyWsURL := args[0].String()
 	host := args[1].String()
@@ -50,6 +51,11 @@ func jsConnect(_ js.Value, args []js.Value) any {
 	password := args[5].String()
 	width := args[6].Int()
 	height := args[7].Int()
+	if len(args) >= 9 {
+		swapAltMeta = args[8].Bool()
+	} else {
+		swapAltMeta = false
+	}
 
 	go func() {
 		if err := connect(proxyWsURL, host, port, domain, user, password, width, height); err != nil {
@@ -277,7 +283,7 @@ func jsKeyDown(_ js.Value, args []js.Value) any {
 	c := rdpClient
 	clientMu.Unlock()
 	if c != nil {
-		code := jsCodeToRDP(args[0].String())
+		code := jsCodeToRDP(args[0].String(), swapAltMeta)
 		if code != 0 {
 			c.KeyDown(code)
 		}
@@ -293,7 +299,7 @@ func jsKeyUp(_ js.Value, args []js.Value) any {
 	c := rdpClient
 	clientMu.Unlock()
 	if c != nil {
-		code := jsCodeToRDP(args[0].String())
+		code := jsCodeToRDP(args[0].String(), swapAltMeta)
 		if code != 0 {
 			c.KeyUp(code)
 		}

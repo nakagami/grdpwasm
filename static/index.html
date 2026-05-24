@@ -74,6 +74,10 @@
     <input type="number" id="width" value="1280" />
     <label>Height</label>
     <input type="number" id="height" value="800" />
+    <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+      <input type="checkbox" id="swapAltMeta" />
+      Swap Alt/Meta
+    </label>
     <button id="connectBtn" onclick="toggleConnect()">Connect</button>
     <span id="status">Loading WASM…</span>
   </div>
@@ -105,11 +109,14 @@
         const v = getCookie('rdp_' + id);
         if (v !== null) document.getElementById(id).value = v;
       }
+      const sam = getCookie('rdp_swapAltMeta');
+      if (sam !== null) document.getElementById('swapAltMeta').checked = (sam === '1');
     }
     function saveCookies() {
       for (const id of ['host', 'port', 'domain', 'width', 'height']) {
         setCookie('rdp_' + id, document.getElementById(id).value.trim());
       }
+      setCookie('rdp_swapAltMeta', document.getElementById('swapAltMeta').checked ? '1' : '0');
     }
     loadCookies();
 
@@ -404,7 +411,8 @@
       } else {
         document.getElementById("status").textContent = "Connecting… (WebCodecs unavailable)";
       }
-      rdpConnect(proxyURL(), host, port, domain, user, password, width, height);
+      rdpConnect(proxyURL(), host, port, domain, user, password, width, height,
+        document.getElementById("swapAltMeta").checked);
     }
 
     // Callbacks from WASM
