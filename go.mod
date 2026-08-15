@@ -4,7 +4,7 @@ go 1.26.3
 
 require (
 	github.com/gorilla/websocket v1.5.3
-	github.com/nakagami/grdp v0.9.2
+	github.com/nakagami/grdp v0.9.7
 )
 
 require (
