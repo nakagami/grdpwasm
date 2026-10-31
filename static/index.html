@@ -55,6 +55,8 @@
       display: block;
       cursor: none;
       outline: none;
+      max-width: 100%;
+      max-height: 100%;
     }
   </style>
 </head>
@@ -458,7 +460,8 @@
     canvas.addEventListener("mousemove", e => {
       if (!connected) return;
       const r = canvas.getBoundingClientRect();
-      rdpMouseMove(Math.floor(e.clientX - r.left), Math.floor(e.clientY - r.top));
+      const sx = canvas.width / r.width, sy = canvas.height / r.height;
+      rdpMouseMove(Math.floor((e.clientX - r.left) * sx), Math.floor((e.clientY - r.top) * sy));
     });
 
     canvas.addEventListener("mousedown", e => {
@@ -466,15 +469,17 @@
       e.preventDefault();
       canvas.focus();
       const r = canvas.getBoundingClientRect();
+      const sx = canvas.width / r.width, sy = canvas.height / r.height;
       // grdp button: 0=left, 1=middle, 2=right  (JS: 0=left, 1=middle, 2=right)
-      rdpMouseDown(e.button, Math.floor(e.clientX - r.left), Math.floor(e.clientY - r.top));
+      rdpMouseDown(e.button, Math.floor((e.clientX - r.left) * sx), Math.floor((e.clientY - r.top) * sy));
     });
 
     canvas.addEventListener("mouseup", e => {
       if (!connected) return;
       e.preventDefault();
       const r = canvas.getBoundingClientRect();
-      rdpMouseUp(e.button, Math.floor(e.clientX - r.left), Math.floor(e.clientY - r.top));
+      const sx = canvas.width / r.width, sy = canvas.height / r.height;
+      rdpMouseUp(e.button, Math.floor((e.clientX - r.left) * sx), Math.floor((e.clientY - r.top) * sy));
     });
 
     canvas.addEventListener("wheel", e => {
